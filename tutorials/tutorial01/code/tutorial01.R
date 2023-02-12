@@ -14,12 +14,13 @@ library(xml2)
 # We use the read_html() function from rvest to read in the html
 bowlers <- "https://stats.espncricinfo.com/ci/content/records/93276.html"
 
-html <- read_html()
+html <- read_html(bowlers)
 html
 
 # We can inspect the structure of this html using xml_structure() from xml2
 xml_structure(html)
 capture.output(xml_structure(html))
+
 
 # That's quite a big html! maybe we should go back to square 1 and inspect the 
 # page...
@@ -43,8 +44,9 @@ capture.output(xml_structure(html))
 # gives a good overview of the difference between the two.
 
 # html nodes using html_nodes()
+help("html_nodes")
 html %>%
-  html_nodes() # try searching for the table node
+  html_nodes("table") # try searching for the table node
 
 html %>%
   html_nodes() # we could also try using the class - add a dot before
@@ -52,13 +54,13 @@ html %>%
 # xpaths
 # To search using xpath selectors, we need to add the xpath argument.
 html %>%
-  html_nodes(xpath = "//table")
+  html_nodes(xpath = "//table[position() = 1]")
 
 # Here's a useful guide to xpath syntax: https://www.w3schools.com/xml/xpath_syntax.asp
 
 # Try selecting the first node of the table class, and assign it to a new object
 tab1 <- html %>%
-  html_nodes()
+  html_nodes(xpath = "//table[position() = 1]")
 
 # Let's look at the structure of this node. We could use the xml_structure() 
 # function, but the html is still too big. Try inspecting the object in the 
@@ -66,7 +68,7 @@ tab1 <- html %>%
 
 # We basically want "thead" and "tbody". How might we get those?
 tab2 <- tab1 %>%
-  html_nodes()
+  html_nodes(xpath ="//table/thead | //table/tbody")
 
 # We now have an object containing 2 lists. With a bit of work we can extract 
 # the text we want as a vector:
@@ -88,7 +90,7 @@ xml_children(tab1)
 # "thead" node, and our data are in the "tbody" node. The html_table() function 
 # can parse this type of structure automatically. Try it out, and assign the 
 # result to an object.
-dat <- 
+dat <- html_table(tab1)[[1]]
 
 dat %>%
   filter(grepl("ENG|AUS", Player)) %>%
@@ -103,3 +105,45 @@ dat %>%
 # Now that we've managed to do that for bowlers, try completing all the steps 
 # yourselves on a new html - top international batsmen!
 batsmen <- "https://stats.espncricinfo.com/ci/content/records/223646.html"
+html <- read_html(batsmen)
+html
+
+xml_structure(html)
+capture.output(xml_structure(html))
+
+html %>%
+  html_nodes("table")
+
+html %>%
+  html_nodes(xpath = "//table[position() = 1]")
+ta1 <- html %>%
+  html_nodes(xpath = "//table[position() = 1]")
+
+ta2 <- tab1 %>%
+  html_nodes(xpath ="//table/thead | //table/tbody")
+
+heads <- ta2[1] %>%
+  html_nodes(xpath = "//th") %>%
+  html_text()
+
+body <- ta2[2] %>%
+  html_nodes(xpath = "//tr/td") %>%
+  html_text()
+
+dat <- html_table(ta1)[[1]]
+
+dat %>%
+  filter(grepl( "ENG",Player)) %>%
+  ggplot(aes(Runs, Inns)) +
+  geom_text(aes(label = Player)) +
+  geom_smooth(method = "lm")
+dat %>%
+  filter(grepl( "AUS",Player)) %>%
+  ggplot(aes(Runs, Inns)) +
+  geom_text(aes(label = Player)) +
+  geom_smooth(method = "lm")
+dat %>%
+  #filter(grepl( Player)) %>%
+  ggplot(aes(Runs, Inns)) +
+  geom_text(aes(label = Player)) +
+  geom_smooth(method = "lm")

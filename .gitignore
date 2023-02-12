@@ -37,3 +37,4 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+tutorials/tutorial02/data/dfm

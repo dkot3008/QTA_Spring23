@@ -100,15 +100,20 @@ head(corpSum23[,-8])
 ## 2. Corpus statistics
 #  We can use the corpus summary object to start creating statistical 
 #  plots of our text data, for instance a histogram of articles over time:
+plot.new()
 corpSum22 %>%
   ggplot(aes(date)) +
+  labs(title='Corpus sum 22')+
   geom_histogram() # note, we can use geom_density() to give the pdf
 corpSum23 %>%
   ggplot(aes(date)) +
+  labs(title= 'Corpus sum 23')+
   geom_histogram() # note, we can use geom_density() to give the pdf
 
 # We can also plot these simultaneously using lubridate
 ggplot(data = NULL) +
+  labs(title='Corpus density 22 vs 23',
+      subtitle = 'Red = 22,Blue 23' )+
   geom_density(aes(yday(corpSum22$date)), color = "red") +
   geom_density(aes(yday(corpSum23$date)), color = "blue") 
   
@@ -119,6 +124,8 @@ corpSum23$ttr <- corpSum23$Types / corpSum23$Tokens
 
 # We can plot this over time as well:
 ggplot(data = NULL) +
+  labs(title='Corpus density 22 vs 23',
+       subtitle = 'Red = 22,Blue 23' )+
   geom_point(aes(yday(corpSum22$date), corpSum22$ttr), col = "red") +
   geom_point(aes(yday(corpSum23$date), corpSum23$ttr), col = "blue") +
   geom_smooth(aes(yday(corpSum22$date), corpSum22$ttr), col = "red") +
@@ -138,7 +145,7 @@ ggplot(data = NULL) +
 # Julian Borger. Look at the code below and fill in the necessary arguments.
 
 corpSum22 %>%
-  filter(grepl(pattern, col)) %>%
+  filter(grepl(pattern = , corpSum22$byline)) %>%
   group_by(grp = str_extract(col, pattern)) %>%
   summarise(av = mean(fk$Flesch.Kincaid)) %>%
   ggplot(aes(x = reorder(grp, -av), y = av)) +
@@ -146,9 +153,28 @@ corpSum22 %>%
   ggtitle(label = "FK Readability by Correspondent") +
   xlab(label = NULL) +
   ylab("Mean Flesch-Kincaid")
+help(grepl)
+##my attempt
+read22 <- textstat_readability(
+  corp22,
+  measure = "Flesch")
 
+re
+glimpse(read22)
+mean(read22$Flesch)
+#not working
+read22%>%
+  ggplot(aes(x = reorder(x=$Flesch), y = av)) +
+  geom_col() +
+  ggtitle(label = "FK Readability by Correspondent") +
+  xlab(label = NULL) +
+  ylab("Mean Flesch-Kincaid")
 # Try the same for 2023 as well - what do we find?
-
+read23 <- textstat_readability(
+  corp23,
+  measure = "Flesch")
+glimpse(read23)
+mean(read23$Flesch)
 ## 3. Creating the tokens list and the dfm
 # Let's move on to creating our other data objects: the tokens list and 
 # the dfm. Here are the steps we followed last week:
@@ -178,10 +204,27 @@ colc23 <- textstat_collocations(toks23, size = 2, min_count = 10)
 
 # This time, let's look at the z scores to see what cut-off to use
 ?textstat_collocations
+#my attempts
+textstat_collocations(
+  toks22,
+  method = "lambda",
+  size = 2,
+  min_count = 2,
+  smoothing = 0.5,
+  tolower = TRUE,)
 
-toks22 <- tokens_compound(toks22, pattern = colc22["pick a z score"])
-toks23 <- tokens_compound(toks23, pattern = colc23["pick a z score"])
-
+textstat_collocations(
+  corp23,
+  method = "lambda",
+  size = 2,
+  min_count = 2,
+  smoothing = 0.5,
+  tolower = TRUE,)
+#end
+toks22 <- tokens_compound(toks22, pattern = colc22$collocation[colc22$z>17.5])
+toks23 <- tokens_compound(toks23, pattern = colc23$collocation[colc23$z>16])
+glimpse(toks22)
+glimpse(toks23)
 # Remove whitespace
 toks22 <- tokens_remove(quanteda::tokens(toks22), "") 
 toks23 <- tokens_remove(quanteda::tokens(toks23), "") 
@@ -195,7 +238,8 @@ toks23 <- tokens_wordstem(toks23)
 # for features that should have been removed. Let's do that again
 # this time: create a dfm for both tokens objects, then go back to
 # remove the necessary stopwords.
-
+dfm22 <- dfm(toks22)
+dfm23 <- dfm(toks23)
 
 #### 4. Statistics with the dfm 
 # Let's compare the relative frequency of features from our two years.
@@ -205,15 +249,23 @@ dfm23_frq <- textstat_frequency(dfm23, n = 20)
 dfm22_frq %>%
   ggplot(aes(x = reorder(feature, frequency), y = frequency)) +
   geom_point() +
+  labs(title = 'coverage 2022')+
   coord_flip() +
   labs(x = "feature")
 
 dfm23_frq %>%
   ggplot(aes(x = reorder(feature, frequency), y = frequency)) +
   geom_point() +
+  labs(title = 'coverage 2023')+
   coord_flip() +
   labs(x = "feature")
-  
+ 
+
+#remve
+toks22 <- tokens_remove(toks22,c('said','say','also','ukrain','ukrainian','russia'
+                                 ,'russian'),valuetype ='fixed')
+toks23 <- tokens_remove(toks23,c('said','say','also','ukrain','ukrainian','russia'
+                                 ,'russian'),valuetype = 'fixed')
 # We can also bind together our two dfms
 dfm_ukr <- rbind(dfm22, dfm23)
 
@@ -251,3 +303,4 @@ docvars(dfm_sentiment) %>%
 # save our data for next time
 saveRDS(dfm22, "data/dfm22")
 saveRDS(dfm23, "data/dfm23")
+

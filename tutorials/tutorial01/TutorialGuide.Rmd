@@ -1,8 +1,10 @@
 ---
 title: "Tutorial Guide, QTA Wk 1"
 author: "Martyn Egan"
-date: "2023-01-27"
-output: html_document
+date: '2023-01-27'
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
