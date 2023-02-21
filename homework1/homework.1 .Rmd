@@ -1,3 +1,43 @@
+---
+title: 'POP77022: Programming Exercise 1'
+author: "Darragh Kane O Toole"
+date: "Today's date"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+The first homework assignment will cover concepts and methods from Weeks 1 & 2 (basic string operations, corpus acquisition, text processing, textual statistics, dictionary methods).  You are expected to provide your answers as embedded R code and/or text answers in the chunks provided in the homework RMarkdown file. 
+
+For example:
+
+```{r}
+print("Print R code in code chunk.")
+```
+
+```
+Describe results and provide answers to conceptual and open-ended questions
+in a plain code block like this one.
+```
+
+__The programming exercise is worth 20% of your total grade.  The questions sum to 100 points.__
+
+## Analysis of tweets during a political crisis
+
+We will start with a dataset that contains almost 900 tweets that were published by four central figures in American politics around the time of the onset of an impeachment inquiry: Pres. Donald Trump, Rudy Giuliani, Speaker of the House Rep. Nancy Pelosi, and Chair of the House Intelligence Committee Rep. Adam Schiff.  
+
+The first step will be to read the spreadsheet of tweets into R and then use the `str` and `head` functions to describe the variables and contents of the dataset.  For your convenience, I will provide code to import the spreadsheet (*Hint: be sure that the data folder is in the same folder as this homework RMarkdown file.*)
+
+```{r include=FALSE}
+setwd(getwd())
+data <- read.csv("~/Desktop/QTA_Spring23/homework1/us_tweets.csv", 
+             stringsAsFactors=FALSE,
+                  encoding = "utf-8")
+us_tweets <- data
 pkgTest <- function(pkg){
   new.pkg <- pkg[!(pkg %in% installed.packages()[,  "Package"])]
   if (length(new.pkg)) 
@@ -15,33 +55,54 @@ lapply(c("tidyverse",
          "textstem", # an alternative method for lemmatizing
          "lubridate" # working with dates
 ), pkgTest)
+library('tidyverse')
 
+```
 
-setwd(getwd())
-data <- read.csv("./data/us_tweets.csv", 
-                 stringsAsFactors=FALSE,
-                 encoding = "utf-8")
+### Question 1.0 (2 points)
 
-#Question 1
+Print the number of tweets that are in this dataset.
+
+```{r}
+# Insert code here
 glimpse(us_tweets)
-length(us_tweets$X)
-#899 tweets
+print(length(us_tweets$X))
+```
 
-#Question 1.1
+
+### Question 1.1 (3 points)
+
+Create a new dataframe that only includes original tweets (remove retweets) and print the number of rows.
+
+```{r}
+# Insert code here
 originals <- us_tweets%>%
   filter(is_retweet == "FALSE")
 summary(originals)
-#899-633
+length(originals$X)
+```
 
-length(originals$is_retweet)
-#633
+### Question 1.2 (20 points)
 
+Create a smaller dataframe that only includes tweets by Donald Trump.
 
-#question 1.2
+* Print how many tweets by Trump are contained in the dataset?
+
+For the following print the number of instances as well as an example tweet:
+
+* How many tweets include an exclamation mark?  
+* In how many tweets did Trump mention words related to "winning"?
+* "employment"?
+* "immigration"?
+* "hoax"?
+
+Make sure that you support your answers with code.
+
+(*Hints: be sure to use regular expressions when searching the tweets; also you might want to wrap your search term in between word anchor boundaries (`\\b`).  For instance, for the term health: `"\\bhealth\\b"`*)
+```{r echo=TRUE}
 trump <- us_tweets%>%
   filter(screen_name == "realDonaldTrump")
 length(trump$X)
-#600
 ##corpus made
 tcorp <- corpus(trump, 
                  docid_field = "X",
@@ -62,7 +123,26 @@ trumptok <- quanteda::tokens(tcorp,
 ##frequency
 tokens_wordstem(trumptok)
 t_dft <- dfm(trumptok)
-tfreq <- textstat_frequency(dft, n = 1000)
+```
+
+```{r}
+# Insert code here
+trump <- us_tweets%>%
+  filter(screen_name == "realDonaldTrump")
+length(trump$X)
+#600
+ttok <- quanteda::tokens(tcorp, 
+                             include_docvars = TRUE,
+                             remove_numbers = TRUE,
+                             remove_punct = TRUE,
+                             remove_symbols = TRUE,
+                             remove_separators = TRUE,
+                             remove_url = TRUE) %>% #Create tokens object
+  tokens_tolower() %>% # Transform to lower case
+  tokens_remove(stopwords("english")) # Remove stopwords
+tokens_wordstem(ttok)
+t_dft <- dfm(ttok)
+tfreq <- textstat_frequency(t_dft, n = 30)
 ##frequency of "!"
 tfreq%>% 
   filter(feature== "!")
@@ -81,7 +161,22 @@ tfreq%>%
 #6 hoax
 tfreq%>% 
   filter(feature == "hoax")
-############2.1
+
+```
+
+
+### Question 2 (75 points)
+
+Create a `corpus` and a `dfm` object with processed text (including collocations) using the dataframe generated in Question 1.1.  With the generated `dfm` object perform the following tasks:
+
+1. Create a frequency plot of the top 30 tokens for each politician.
+1. Determine the "key" terms that Trump and Pelosi are more likely to tweet.  Plot your results
+1. Perform a keyword in context analysis using your `corpus` object for some of the most distinct keywords from both Trump and Pelosi. *Hint: remember to use the `phrase` function in the `pattern` argument of `kwic`*
+1. Conduct a sentiment analysis of Trump's tweets using the Lexicon Sentiment Dictionary.  Plot net sentiment over the entire sample period. Interpret the results.  *Hint: you might want to use `lubridate` to generate a date object variable from the "created_at" variable before plotting.  For example: `docvars(dfm, "date") <- lubridate::ymd_hms(dfm@docvars$created_at)` *
+1. Justify each of your text processing decisions and interpret your results in the text field below. What can we learn about the political communication surrounding the political crisis based on the results from the above tasks?
+
+```{r echo=TRUE}
+library(quanteda)
 ###frequency for all
 unique(us_tweets$screen_name)
 ###trump
@@ -171,8 +266,24 @@ stok <- quanteda::tokens(scorp,
 tokens_wordstem(stok)
 s_dft <- dfm(stok)
 sfreq <- textstat_frequency(s_dft, n = 30)
-################2.2
-#####trump and pelosi
+# Insert code here
+
+```
+
+```{r echo=FALSE}
+##2.1 code hidden for conveniance
+#trump
+print(tfreq) 
+#rudy
+print(rfreq)
+#pelosi
+print(pfreq)
+#schiff
+print(sfreq)
+
+
+```
+```{r echo=TRUE}
 tp <- us_tweets%>%
   filter(screen_name == "SpeakerPelosi" | screen_name =="realDonaldTrump")
 
@@ -198,35 +309,32 @@ tp_tok <- quanteda::tokens(tp_corp,
 tokens_wordstem(tp_tok)
 tp_dft <- dfm(tp_tok)
 tpfreq <- textstat_frequency(tp_dft, n = 30)
-
 ##now with collocations
 colc_tp <- textstat_collocations(tp_tok, size = 2, min_count = 8)
+```
 
+```{r}
+###2.2 Trump and pelosi 
+print(colc_tp)
+```
 
-
-###2.3 keyword in context analysis
-help("kwic")
+```{r}
+##2.3 
 trump_kwic <- kwic(trumptok,
                      pattern = phrase(tfreq$feature),
                      window = 3,
                      case_insensitive = TRUE)
+print(trump_kwic)
 
 pelosi_kwic <- kwic(ptok,
                    pattern = phrase(pfreq$feature),
                    window = 3,
                    case_insensitive = TRUE)
+print(pelosi_kwic)
+```
 
-
-
-
-
-
-
-###2.4 sentiment analysis of Trump’s tweets using the Lexicon Sentiment Dictionary
-lubridate to generate a date object variable from the “created_at” variable before plotting. 
-For example: docvars(dfm, "date") <- lubridate::ymd_hms(dfm@docvars$created_at)
-help("lubridate")
-#dfmtrump <- dfm(ttok)
+```{r echo=TRUE}
+dfmtrump <- dfm(ttok)
 docvars(dfmtrump, "date") <- lubridate::ymd_hms(dfmtrump@docvars$created_at)
 
 
@@ -247,84 +355,21 @@ docvars(dfm_sentiment) %>%
        x = "day of year", y = "net sentiment", 
        colour = "year")
 
-interperation of part 1 outcomes
+```
 
-Trump talks about himself alot with the words president,trump and his username
-being in his top words 
-Unsurpisingly the other ai pointof interest is things e doesnt like deomcrats and news
-Not massively surprising byt disapointing
+```
+<Insert open-ended response here>
+The mehtodology I have used was the simplest way I could do it, with decisions 
+some deciosion being made due to review ing of data outputs such as the kwic and 
+key terms which I tried using a variety of lengths and preferences. 
 
-Rudy loves to talk baout scandels and issues with his top word
+The text ananlysed accross all leaders shows a tendancy to for leaders to boast about themselfs and to bash their opposition. Examples of this are trumps most used words including president,his username and trump. This is also seen in the language of other leaders to a lesser extent with names of other political leader being common in the tweets.
 
-pelosi lots fo trump and interaction with him being attempted along with a notably 
-the words act and fight
+The other 2 questions add to this through context showing alot of language thta is linked to blame and complain. 
 
-schiff tbc
-
-
-
+Then this concludes with the trump sentiment which is shwon to be get progressively more negative as the blam retoric continues. 
+```
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-###total corpus attempt
-corp <- corpus(us_tweets, 
-                docid_field = "X",
-                text_field = "text")
-sumcorp <- summary(corp, 
-                    n = nrow(docvars(corp)))
-
-corptok <- quanteda::tokens(corp, 
-                             include_docvars = TRUE,
-                             remove_numbers = TRUE,
-                             remove_punct = TRUE,
-                             remove_symbols = TRUE,
-                             remove_separators = TRUE,
-                             remove_url = TRUE) %>% #Create tokens object
-  tokens_tolower() %>% # Transform to lower case
-  tokens_remove(stopwords("english")) # Remove stopwords
-##frequency
-tokens_wordstem(corptok)
-corp_dft <- dfm(corptok)
-corp_freq <- textstat_frequency(corp_dft, n = 500)
-
-###failed attempts
-help('tokens')
-winning <- trumptok%>%
-  filter(text == 'winning')
-
-
-
-trumptok <- quanteda::tokens(trump$text, 
-                             include_docvars = TRUE,
-                             remove_numbers = TRUE,
-                             remove_punct = TRUE,
-                             remove_symbols = FALSE,
-                             remove_separators = TRUE,
-                             remove_url = TRUE) %>% #Create tokens object
-  tokens_tolower() %>% # Transform to lower case
-  tokens_remove(stopwords("english")) # Remove stopwords
-
-tokens_lookup(trumptok ,valuetype = c('win'), 
-              case_insensitive = TRUE)
-tokens_lookup
-typeof(trumptok)
-help("quanteda")
-as.list(trumptok)
-test <-as.character(trumptok)
-(test)
-summary(corpus(test))
-typeof(corpus(test))
-x <- tokenize_character(trumptok)
-glimpse(x)

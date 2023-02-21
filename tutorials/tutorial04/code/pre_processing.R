@@ -18,3 +18,4 @@ get_coll <-function(tokens){
   unsup_col <- unsup_col[order(-unsup_col$count),] # sort detected collocations by count (descending)
   return(unsup_col)
 }
+

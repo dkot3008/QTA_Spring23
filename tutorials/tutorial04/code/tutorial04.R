@@ -22,15 +22,27 @@ lapply(c("tidyverse",
        pkgTest)
 
 ## 1. Acquire (?), read in and wrangle data
-dat <- readRDS()
+dat <- readRDS('data/df2023')
+dat$section_name
+dat <- dat[dat$section_name %in% c('World news','Opinion')
+           &dat$type == 'article',]
+
 
 # You need to a) Subset on section_name, using World news and Opinion, and 
 #                type, using article.
+dat <-dat %>% 
+  select(headline,
+         byline,
+         date = web_publication_date,
+         section_name,
+         standfirst,
+         body_text)%>%
+  mutate(date = as_datetime(date))
 
 #             b) Select relevant columns.
 
 #             c) Remove duplicates.
-
+dat <- dat[-which(duplicated(dat$headline)),]
 # This code relabels our data, because "World news" contains whitespace...
 dat$section_name <- ifelse(dat$section_name == "World news", "World", dat$section_name)
 
@@ -38,7 +50,7 @@ dat$section_name <- ifelse(dat$section_name == "World news", "World", dat$sectio
 # You need to a) Remove the large round symbol.
 
 #             b) Convert to a corpus.
-
+corp <- corpus(dat)
 #             c) and d) Clean the corpus and find collocations.
 
 # For steps c) and d), check out the pre_processing.R script.
@@ -118,7 +130,7 @@ nb_train <- train(section_labels ~ .,
 saveRDS(nb_train, "data/nb_train")
 
 #             f) If your machine is running slow... read in the model
-#nb_train <- readRDS("data/nb_train")
+nb_train <- readRDS("data/nb_train")
 
 #             g) Stop the cluster
 stopCluster(cl) # stop parallel process once job is done

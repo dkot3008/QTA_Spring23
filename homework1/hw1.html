@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<hr />
+<p>title: &#39;POP77022: Programming Exercise 1&#39; author: &quot;Darragh Kane O Toole&quot; date: &quot;Today&#39;s date&quot; output: html_document ---</p>
+<p><code>{r setup, include=FALSE} knitr::opts_chunk$set(echo = TRUE)</code></p>
+<h2>Overview</h2>
+<p>The first homework assignment will cover concepts and methods from Weeks 1 &amp; 2 (basic string operations, corpus acquisition, text processing, textual statistics, dictionary methods). You are expected to provide your answers as embedded R code and/or text answers in the chunks provided in the homework RMarkdown file.</p>
+<p>For example:</p>
+<p><code>{r} print(&quot;Print R code in code chunk.&quot;)</code></p>
+<p><code>Describe results and provide answers to conceptual and open-ended questions in a plain code block like this one.</code></p>
+<p><strong>The programming exercise is worth 20% of your total grade. The questions sum to 100 points.</strong></p>
+<h2>Analysis of tweets during a political crisis</h2>
+<p>We will start with a dataset that contains almost 900 tweets that were published by four central figures in American politics around the time of the onset of an impeachment inquiry: Pres. Donald Trump, Rudy Giuliani, Speaker of the House Rep. Nancy Pelosi, and Chair of the House Intelligence Committee Rep. Adam Schiff.</p>
+<p>The first step will be to read the spreadsheet of tweets into R and then use the <code>str</code> and <code>head</code> functions to describe the variables and contents of the dataset. For your convenience, I will provide code to import the spreadsheet (<em>Hint: be sure that the data folder is in the same folder as this homework RMarkdown file.</em>)</p>
+<p>```{r} setwd(getwd()) data &lt;- read.csv(&quot;./data/us_tweets.csv&quot;, stringsAsFactors=FALSE, encoding = &quot;utf-8&quot;)</p>
+<p>```</p>
+<h3>Question 1.0 (2 points)</h3>
+<p>Print the number of tweets that are in this dataset.</p>
+<p><code>{r} # Insert code here glimpse(us_tweets) print(length(us_tweets$X))</code></p>
+<h3>Question 1.1 (3 points)</h3>
+<p>Create a new dataframe that only includes original tweets (remove retweets) and print the number of rows.</p>
+<p><code>{r} # Insert code here originals &lt;- us_tweets%&gt;%   filter(is_retweet == &quot;FALSE&quot;) summary(originals) length(originals$X)</code></p>
+<h3>Question 1.2 (20 points)</h3>
+<p>Create a smaller dataframe that only includes tweets by Donald Trump.</p>
+<ul>
+<li>Print how many tweets by Trump are contained in the dataset?</li>
+</ul>
+<p>For the following print the number of instances as well as an example tweet:</p>
+<ul>
+<li>How many tweets include an exclamation mark?<br />
+</li>
+<li>In how many tweets did Trump mention words related to &quot;winning&quot;?</li>
+<li>&quot;employment&quot;?</li>
+<li>&quot;immigration&quot;?</li>
+<li>&quot;hoax&quot;?</li>
+</ul>
+<p>Make sure that you support your answers with code.</p>
+<p>(<em>Hints: be sure to use regular expressions when searching the tweets; also you might want to wrap your search term in between word anchor boundaries (<code>\\b</code>). For instance, for the term health: <code>&quot;\\bhealth\\b&quot;</code></em>) ```{r echo=TRUE}</p>
+<h2>corpus made</h2>
+<p>tcorp &lt;- corpus(trump, docid<em>field = &quot;X&quot;, text</em>field = &quot;text&quot;)</p>
+<p>sumtcorp &lt;- summary(tcorp, n = nrow(docvars(tcorp))) #note: the default is n=100</p>
+<h1>tokenise</h1>
+<p>trumptok &lt;- quanteda::tokens(tcorp, include<em>docvars = TRUE, remove</em>numbers = TRUE, remove<em>punct = FALSE, remove</em>symbols = FALSE, remove<em>separators = TRUE, remove</em>url = TRUE) %&gt;% #Create tokens object tokens<em>tolower() %&gt;% # Transform to lower case tokens</em>remove(stopwords(&quot;english&quot;)) # Remove stopwords</p>
+<h2>frequency</h2>
+<p>tokens<em>wordstem(trumptok) t</em>dft &lt;- dfm(trumptok) ```</p>
+<p>```{r}</p>
+<h1>Insert code here</h1>
+<p>trump &lt;- us<em>tweets%&gt;% filter(screen</em>name == &quot;realDonaldTrump&quot;) length(trump$X)</p>
+<h1>600</h1>
+<h2>frequency of &quot;!&quot;</h2>
+<p>tfreq%&gt;% filter(feature== &quot;!&quot;)</p>
+<h1>frequency of &quot;win</h1>
+<p>tfreq%&gt;% filter(feature == &quot;win&quot;)</p>
+<h1>freqeuncy of employment</h1>
+<p>tfreq%&gt;% filter(feature == &quot;employment&quot;)</p>
+<h1>frequency of immigration</h1>
+<p>tfreq%&gt;% filter(feature == &quot;immigration&quot;)</p>
+<h1>6 hoax</h1>
+<p>tfreq%&gt;% filter(feature == &quot;hoax&quot;)</p>
+<p>```</p>
+<h3>Question 2 (75 points)</h3>
+<p>Create a <code>corpus</code> and a <code>dfm</code> object with processed text (including collocations) using the dataframe generated in Question 1.1. With the generated <code>dfm</code> object perform the following tasks:</p>
+<ol>
+<li>Create a frequency plot of the top 30 tokens for each politician.</li>
+<li>Determine the &quot;key&quot; terms that Trump and Pelosi are more likely to tweet. Plot your results</li>
+<li>Perform a keyword in context analysis using your <code>corpus</code> object for some of the most distinct keywords from both Trump and Pelosi. <em>Hint: remember to use the <code>phrase</code> function in the <code>pattern</code> argument of <code>kwic</code></em></li>
+<li>Conduct a sentiment analysis of Trump&#39;s tweets using the Lexicon Sentiment Dictionary. Plot net sentiment over the entire sample period. Interpret the results. *Hint: you might want to use <code>lubridate</code> to generate a date object variable from the &quot;created_at&quot; variable before plotting. For example: <code>docvars(dfm, &quot;date&quot;) &lt;- lubridate::ymd_hms(dfm@docvars$created_at)</code> *</li>
+<li>Justify each of your text processing decisions and interpret your results in the text field below. What can we learn about the political communication surrounding the political crisis based on the results from the above tasks?</li>
+</ol>
+<p>```{r echo=TRUE} library(quanteda)</p>
+<h3>frequency for all</h3>
+<p>unique(us<em>tweets$screen</em>name)</p>
+<h3>trump</h3>
+<p>ttok &lt;- quanteda::tokens(tcorp, include<em>docvars = TRUE, remove</em>numbers = TRUE, remove<em>punct = TRUE, remove</em>symbols = TRUE, remove<em>separators = TRUE, remove</em>url = TRUE) %&gt;% #Create tokens object tokens<em>tolower() %&gt;% # Transform to lower case tokens</em>remove(stopwords(&quot;english&quot;)) # Remove stopwords tokens<em>wordstem(ttok) t</em>dft &lt;- dfm(ttok) tfreq &lt;- textstat<em>frequency(t</em>dft, n = 30)</p>
+<h3>rudy</h3>
+<p>rudy &lt;- us<em>tweets%&gt;% filter(screen</em>name == &quot;RudyGiuliani&quot;)</p>
+<p>rcorp &lt;- corpus(rudy, docid<em>field = &quot;X&quot;, text</em>field = &quot;text&quot;)</p>
+<p>sumrcorp &lt;- summary(rcorp, n = nrow(docvars(rcorp))) #note: the default is n=100</p>
+<h1>tokenise</h1>
+<p>rtok &lt;- quanteda::tokens(rcorp, include<em>docvars = TRUE, remove</em>numbers = TRUE, remove<em>punct = TRUE, remove</em>symbols = TRUE, remove<em>separators = TRUE, remove</em>url = TRUE) %&gt;% #Create tokens object tokens<em>tolower() %&gt;% # Transform to lower case tokens</em>remove(stopwords(&quot;english&quot;)) # Remove stopwords</p>
+<h2>frequency</h2>
+<p>tokens<em>wordstem(rtok) r</em>dft &lt;- dfm(rtok) rfreq &lt;- textstat<em>frequency(r</em>dft, n = 30)</p>
+<p class="heading">pelosi</p>
+<p>pelosi &lt;- us<em>tweets%&gt;% filter(screen</em>name == &quot;SpeakerPelosi&quot;)</p>
+<h2>corpus</h2>
+<p>pcorp &lt;- corpus(pelosi, docid<em>field = &quot;X&quot;, text</em>field = &quot;text&quot;)</p>
+<p>sumpcorp &lt;- summary(pcorp, n = nrow(docvars(pcorp))) #note: the default is n=100</p>
+<h1>tokenise</h1>
+<p>ptok &lt;- quanteda::tokens(pcorp, include<em>docvars = TRUE, remove</em>numbers = TRUE, remove<em>punct = TRUE, remove</em>symbols = TRUE, remove<em>separators = TRUE, remove</em>url = TRUE) %&gt;% #Create tokens object tokens<em>tolower() %&gt;% # Transform to lower case tokens</em>remove(stopwords(&quot;english&quot;)) # Remove stopwords</p>
+<h2>frequency</h2>
+<p>tokens<em>wordstem(ptok) p</em>dft &lt;- dfm(ptok) pfreq &lt;- textstat<em>frequency(p</em>dft, n = 30)</p>
+<h5>schiff</h5>
+<p>schiff &lt;- us<em>tweets%&gt;% filter(screen</em>name == &quot;RepAdamSchiff&quot;)</p>
+<p>scorp &lt;- corpus(schiff, docid<em>field = &quot;X&quot;, text</em>field = &quot;text&quot;)</p>
+<p>sumscorp &lt;- summary(scorp, n = nrow(docvars(scorp))) #note: the default is n=100</p>
+<h1>tokenise</h1>
+<p>stok &lt;- quanteda::tokens(scorp, include<em>docvars = TRUE, remove</em>numbers = TRUE, remove<em>punct = TRUE, remove</em>symbols = TRUE, remove<em>separators = TRUE, remove</em>url = TRUE) %&gt;% #Create tokens object tokens<em>tolower() %&gt;% # Transform to lower case tokens</em>remove(stopwords(&quot;english&quot;)) # Remove stopwords</p>
+<h2>frequency</h2>
+<p>tokens<em>wordstem(stok) s</em>dft &lt;- dfm(stok) sfreq &lt;- textstat<em>frequency(s</em>dft, n = 30)</p>
+<h1>Insert code here</h1>
+<p>```</p>
+<p>```{r echo=FALSE}</p>
+<h2>2.1 code hidden for conveniance</h2>
+<h1>trump</h1>
+<p>print(tfreq)</p>
+<h1>rudy</h1>
+<p>print(rfreq)</p>
+<h1>pelosi</h1>
+<p>print(pfreq)</p>
+<h1>schiff</h1>
+<p>print(sfreq)</p>
+<p><code></code>{r echo=TRUE} tp &lt;- us<em>tweets%&gt;% filter(screen</em>name == &quot;SpeakerPelosi&quot; | screen_name ==&quot;realDonaldTrump&quot;)</p>
+<p>tp<em>corp &lt;- corpus(tp$text, docid</em>field = &quot;text&quot;, text<em>field = &quot;screen</em>name&quot;)</p>
+<p>sumtpcorp &lt;- summary(tp<em>corp, n = nrow(docvars(tp</em>corp))) #note: the default is n=100</p>
+<h1>tokenise</h1>
+<p>tp<em>tok &lt;- quanteda::tokens(tp</em>corp, include<em>docvars = TRUE, remove</em>numbers = TRUE, remove<em>punct = TRUE, remove</em>symbols = TRUE, remove<em>separators = TRUE, remove</em>url = TRUE) %&gt;% #Create tokens object tokens<em>tolower() %&gt;% # Transform to lower case tokens</em>remove(stopwords(&quot;english&quot;)) # Remove stopwords</p>
+<h2>frequency</h2>
+<p>tokens<em>wordstem(tp</em>tok) tp<em>dft &lt;- dfm(tp</em>tok) tpfreq &lt;- textstat<em>frequency(tp</em>dft, n = 30)</p>
+<h2>now with collocations</h2>
+<p>colc<em>tp &lt;- textstat</em>collocations(tp<em>tok, size = 2, min</em>count = 8) ```</p>
+<p><code>{r} ###2.2 Trump and pelosi  print(colc_tp)</code></p>
+<p>```{r}</p>
+<h2>2.3</h2>
+<p>trump<em>kwic &lt;- kwic(trumptok, pattern = phrase(tfreq$feature), window = 3, case</em>insensitive = TRUE) print(trump_kwic)</p>
+<p>pelosi<em>kwic &lt;- kwic(ptok, pattern = phrase(pfreq$feature), window = 3, case</em>insensitive = TRUE) print(pelosi_kwic) ```</p>
+<p>```{r echo=TRUE} docvars(dfmtrump, &quot;date&quot;) &lt;- lubridate::ymd<em>hms(dfmtrump@docvars$created</em>at)</p>
+<p>dfm<em>sentiment &lt;- dfm</em>lookup(dfmtrump, data<em>dictionary</em>LSD2015[1:2]) %&gt;% dfm_group(groups = date)</p>
+<h1>Once we have the frequency for positive and negative sentiment, we can</h1>
+<h1>use a useful feature of R - vectorisation - to calculate net sentiment</h1>
+<h1>across each day and plot it.</h1>
+<p>docvars(dfm<em>sentiment, &quot;prop</em>negative&quot;) &lt;- as.numeric(dfm<em>sentiment[,1] / ntoken(dfm</em>sentiment)) docvars(dfm<em>sentiment, &quot;prop</em>positive&quot;) &lt;- as.numeric(dfm<em>sentiment[,2] / ntoken(dfm</em>sentiment)) docvars(dfm<em>sentiment, &quot;net</em>sentiment&quot;) &lt;- docvars(dfm<em>sentiment, &quot;prop</em>positive&quot;) - docvars(dfm<em>sentiment,&quot;prop</em>negative&quot;)</p>
+<p>docvars(dfm<em>sentiment) %&gt;% ggplot(aes(x = yday(date), y = net</em>sentiment, group = year(date))) + geom_smooth(aes(colour = as.character(year(date)))) + labs(title = &quot;Trump sentiment over time&quot;, x = &quot;day of year&quot;, y = &quot;net sentiment&quot;, colour = &quot;year&quot;)</p>
+<p>```</p>
+<p><code>&lt;Insert open-ended response here&gt;</code></p>
