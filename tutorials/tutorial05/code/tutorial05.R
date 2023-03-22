@@ -28,19 +28,56 @@ lapply(c("tidyverse",
 ## 1. Read in and wrangle data
 #     a) In the data folder you'll find a large data.frame object called 
 #        ukr_h1_2022. Read it in, and check the type of articles it contains.
-dat <- 
+#dat <- read.csv('data/ukr_h1_2022')
+dat <- readRDS('data/ukr_h1_2022')
+
 
 #     b) Pre-process the data.frame.
+unique(dat$section_name)
+###tajen from tutorial 4 complete
+#remove weird meta data
+dat$body_text <- str_replace(dat$body_text, "\u2022.+$", "")
+#select things but data already cleaned
+#turning things into info that can become a corpus
+corp <- corpus(data, 
+               docid_field = "title",
+               text_field = "content"
+               )
 
-  
-dfm <- dfm_trim(dfm, min_docfreq = 20)
+# Clean and make tokens
+source("code/pre_processing.R")
+prepped_toks <- prep_toks(corp) # basic token cleaning
+collocations <- get_coll(prepped_toks) # get collocations
+toks <- tokens_compound(prepped_toks, pattern = collocations[collocations$z > 10,]) # replace collocations
+toks <- tokens_remove(tokens(toks), "") # let's also remove the whitespace placeholders
+
+toks <- tokens(toks, 
+               remove_numbers = TRUE,
+               remove_punct = TRUE,
+               remove_symbols = TRUE,
+               remove_separators = TRUE,
+               remove_url = TRUE,
+) # remove other uninformative text
+toks <- tokens_remove(toks, c("said",
+                                  "say",
+                                  "also",
+                                  'ukraine',
+                                  'russia'),
+                        valuetype = "fixed")
+# Create dfm and weight using tf/idf
+dfm <- dfm(toks) # create DFM
+
+dfm <- dfm_trim(dfm, min_docfreq = 50) # trim DFM
+
+#dfm <- dfm_tfidf(dfm) # weight DFM
+
 
 ## 2. Perform STM 
 # Convert dfm to stm
 stmdfm <- convert(dfm, to = "stm")
 
 # Set k
-K <- 8
+K <- 10
 
 # Run STM algorithm
 modelFit <- stm(documents = stmdfm$documents,
@@ -63,6 +100,9 @@ saveRDS(modelFit, "data/modelFit")
 ## 3. Interpret Topic model 
 # Inspect most probable terms in each topic
 labelTopics(modelFit)
+#Highets prob 
+#FREX freqiency and exclusivity
+#lift >1 means word appears more than expected
 
 # Further interpretation: plotting frequent terms
 plot.STM(modelFit, 
@@ -79,15 +119,17 @@ plot.STM(modelFit,
 
 # Use wordcloud to visualise top terms per topic
 cloud(modelFit,
-      topic = 1,
-      scale = c(2.5, 0.3),
+      topic = 10,
+      scale = c(3, 0.3),
       max.words = 50)
 
 # Reading documents with high probability topics: the findThoughts() function
 findThoughts(modelFit,
              texts = dfm@docvars$standfirst, # If you include the original corpus text, we could refer to this here
-             topics = 1,
-             n = 10)
+             topics = 7,
+             n = 10)#this is the number of headings)
+
+#remove said
 
 ## 4. Topic validation: predictive validity using time series data
 #     a) Convert metadata to correct format
@@ -209,8 +251,10 @@ kResult <- searchK(documents = stmdfm$documents,
                    prevalence = ~ section_name + s(month(date)))
                    #cores = 6) # This no longer works on windows 10 :(
 
-#kResult <- readRDS("data/kResult")                   
+kResult <- readRDS("data/kResult")     
 plot(kResult)
+
+
 
 ## 10. Refine
 # Now that we've run the model and evaluated the output, try to refine

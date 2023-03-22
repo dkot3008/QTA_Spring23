@@ -47,6 +47,7 @@ corp <- corpus(dat,
                docid_field = "headline",
                text_field = "body_text")
 
+
 # Clean and make tokens
 source("code/pre_processing.R")
 prepped_toks <- prep_toks(corp) # basic token cleaning
@@ -214,3 +215,4 @@ svm_pred2 <- predict(svm_final, newdata = vdata)
 
 #             m) Evaluate confusion matrix
 confusionMatrix(reference = as.factor(vdata$section_labels), data = svm_pred2, mode='everything')
+

@@ -1,0 +1,491 @@
+---
+title: 'POP77022: Programming Exercise 2'
+author: "Darragh"
+date: "Today's date"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+The second homework assignment covers concepts and methods from Weeks 3 and 4 (Supervised and unsupervised text classification).  
+
+Please provide your answers as code and text in the RMarkdown file provided. When completed, first knit the file as an HTML file and then save the resulting HTML document in PDF format.  Upload the PDF to Turnitin.
+
+## Supervised text classification of Yelp reviews (50 points)
+
+We begin by analyzing a sample from the Zhang, Zhao & LeCun (2015) dataset of Yelp reviews which have been coded for sentiment polarity.  The authors of the dataset have created a `sentiment` variable where a value of 1 indicates a "negative" review (1 or 2 stars), and a 2 means a "positive" review (3 or 4 stars).
+
+First, bring in the reviews dataset from the `data` directory.  
+
+```{r}
+setwd(getwd())
+data <- read.csv("~/Desktop/QTA_Spring23/Homework2/yelp_data_small.csv", 
+                 stringsAsFactors=FALSE,
+                 encoding = "utf-8")
+```
+
+```{r}
+pkgTest <- function(pkg){
+  new.pkg <- pkg[!(pkg %in% installed.packages()[,  "Package"])]
+  if (length(new.pkg)) 
+    install.packages(new.pkg,  dependencies = TRUE)
+  sapply(pkg,  require,  character.only = TRUE)
+}
+lapply(c("tidyverse",
+         "guardianapi",
+         "quanteda", 
+         "lubridate",
+         "quanteda.textmodels", 
+         "quanteda.textstats", 
+         "caret", # For train/test split
+         "MLmetrics", # For ML
+         "doParallel",
+         "readtext", # for reading in text data
+         "stringi", # for working with character strings
+         "textstem",
+         "quanteda.textplots"), # For parallel processing
+       pkgTest)
+# Function for cleaning
+prep_toks <- function(text_corpus){
+  toks <- tokens(text_corpus,
+                 include_docvars = TRUE) %>%
+    tokens_tolower() %>%
+    tokens_remove(stopwords("english"), padding = TRUE) %>%
+    tokens_remove('[\\p{P}\\p{S}]', valuetype = 'regex', padding = TRUE)
+  return(toks)
+}
+
+# Function for collocations
+get_coll <-function(tokens){
+  unsup_col <- textstat_collocations(tokens,
+                                     method = "lambda",
+                                     size = 2,
+                                     min_count = 5,
+                                     smoothing = 0.5)
+  unsup_col <- unsup_col[order(-unsup_col$count),] # sort detected collocations by count (descending)
+  return(unsup_col)
+}
+
+```
+
+1.  Create a `quanteda` corpus object from this matrix and inspect its attributes.  
+    + What is the overall probability of the "positive" class in the corpus?  Are the classes balanced? (Hint: Use the `table()` function)
+
+```{r}
+table(data$sentiment)
+length(data$sentiment)
+prob_p <- 5088/10000
+###odds of positve
+print(prob_p)
+```
+
+2.  Create a document-feature matrix using this corpus.  Process the text so as to increase predictive power of the features. Justify each of your processing decisions in the context of the supervised classification task.
+
+```{r}
+lemma_toks <- readRDS("~/Desktop/QTA_Spring23/Homework2/lemma_toks")
+keep_coll_list2_3 <- readRDS("~/Desktop/QTA_Spring23/Homework2/keep_coll_list2_3")
+
+
+typeof(data$text)
+
+data$text <- as.character(data$text)
+corp_y <- corpus(data)
+##tokenisation of the corpus
+toks <- quanteda::tokens(corp_y, 
+                                 remove_punct = TRUE, 
+                                 remove_symbols = TRUE,
+                                 remove_numbers = TRUE,
+                                 remove_separators = TRUE,
+                                 remove_url = TRUE)
+toks <- tokens_tolower(toks)
+
+stop_list <- stopwords("english") # load English stopwords from quanteda
+head(stop_list)  
+##remove stopwords
+toks <- tokens_remove(toks, stop_list)
+
+# Now we'll stem the words using the tokens_wordstem() function
+stem_toks <- tokens_wordstem(toks)
+
+toks_list <- as.list(toks) 
+#lematization
+#lemma_toks <- lapply(toks_list, lemmatize_words) 
+#lemma_toks <- as.tokens(lemma_toks) 
+(lemma_toks)
+
+#rerun from lemmatoks
+lemma_toks <- tokens_remove(lemma_toks, c("n"),
+                        valuetype = "fixed")
+##The N is a document formating thing and is to be removed
+
+```
+```{r eval=FALSE, include=TRUE}
+##words appearong toegther
+collocations2 <- textstat_collocations(lemma_toks, size = 2)
+keep_coll_list2 <- collocations2$collocation[1:25]
+keep_coll_list2
+collocations3 <- textstat_collocations(lemma_toks, size = 3)
+keep_coll_list3 <- collocations3$collocation[1:15] 
+keep_coll_list3
+keep_coll_list2_3 <- c(keep_coll_list2,keep_coll_list2)
+keep_coll_list2_3
+#collocations4 <- textstat_collocations(lemma_toks, size = 4)
+#above 3 it doesnt make a whole loy of senese some at 3 make sense and add to the dfm
+```
+```{r}
+comp_tok <- tokens_compound(lemma_toks, keep_coll_list2_3)
+dfm_y <- dfm(comp_tok)
+##top features
+topfeatures(dfm_y)
+##The N is a document formating thing and is to be removed
+#rerun from lemmatoks
+lemma_toks <- tokens_remove(lemma_toks, c("n"),
+  valuetype = "fixed")
+
+comp_tok <- tokens_remove(comp_tok, c("n",
+                                          'get',
+                                          'time',
+                                          'one',
+                                          'just',
+                                          'come',
+                                          'say'),
+                            valuetype = "fixed")
+
+
+dfm_y %>%
+  dfm_trim(min_termfreq = 3) %>%
+  textplot_wordcloud(min_size = 1, max_size = 10, max_words = 100)
+#adjustemnt testing issue
+dfm_y <- dfm_trim(dfm_y, min_docfreq = 1500) # trim DFM
+dfm_y <- dfm_tfidf(dfm_y) # weight DFM
+
+tmpdata <- convert(dfm_y, to = "data.frame", docvars = NULL)
+tmpdata <- tmpdata[, -1] # drop document id variable (first variable)
+#sentiment_labels <- dfm_y@docvars$sentiment # get section labels - note, the @ operator is specific to S4 class object
+sentiment_labels <- dfm_y@docvars$docname_ # get section labels - note, the @ operator is specific to S4 class object
+tmpdata <- as.data.frame(cbind(sentiment_labels, tmpdata)) # labelled data frame
+##pointless words get,time,one,just
+```
+
+
+3.  Now that you have your document-feature matrix, use the `caret` library to create a training set and testing set following an 80/20 split.
+
+```{r}
+set.seed(2023) # set seed for replicability
+tmpdata <- tmpdata[sample(nrow(tmpdata)), ] # randomly order labelled dataset
+#split <- round(nrow(tmpdata) * 0.05) # determine cutoff point of 5% of documents
+split <- round(nrow(tmpdata) * 0.01) # determine cutoff point of 5% of documents
+vdata <- tmpdata[1:split, ] # validation set
+ldata <- tmpdata[(split + 1):nrow(tmpdata), ] # labelled dataset minus validation set
+
+#             b) Create an 80/20 test/train split
+train_row_nums <- createDataPartition(ldata$sentiment, 
+                                      p=0.8, 
+                                      list=FALSE) # set human_labels as the Y variable in caret
+Train <- ldata[train_row_nums, ] # training set
+Test <- ldata[-train_row_nums, ] # testing set
+##The og stack overflow lol
+'ulimit -s unlimited'
+train_control <- readRDS("~/Desktop/QTA_Spring23/Homework2/train_control")
+
+```
+
+```{r eval=FALSE, include=TRUE}
+train_control <- trainControl(
+  method = "repeatedcv",
+  number = 5,
+  repeats = 3,
+  classProbs= TRUE, 
+  summaryFunction = multiClassSummary,
+  selectionFunction = "best", # select the model with the best performance metric
+  verboseIter = TRUE
+)
+```
+
+4.  Using these datasets, train a naive Bayes classifier with the `caret` library to predict review sentiment.  Explain each step you take in the learning pipeline. Be sure to:
+    + Evaluate the performance of the model in terms of classification accuracy of predictions in the testing set. Include a discussion of precision, recall and F1.
+    + Explain in detail what steps were taken to help avoid overfitting.
+    + Describe your parameter tuning.
+    + Discuss the most predictive features of the dataset. (*Hint: use `kwic` to provide a qualitative context)
+
+```{r}
+modelLookup(model = "naive_bayes")
+
+#             b) Create a matrix of combinations of parameters to supply to tuneGrid arg of train()
+tuneGrid <- expand.grid(laplace = c(0,0.5,1.0),
+                        usekernel = c(TRUE, FALSE),
+                        adjust=c(0.75, 1, 1.25, 1.5))
+
+tuneGrid
+
+#             c) Set up parallel processing
+cl <- makePSOCKcluster(7) # create number of copies of R to run in parallel and communicate over sockets
+# Note that the number of clusters depends on how many cores your machine has.  
+registerDoParallel(cl) # register parallel backed with foreach package
+
+```
+
+```{r eval=FALSE, include=TRUE}
+nb_train <- train(sentiment_labels ~ ., 
+                  data = Train,  
+                  method = "naive_bayes", 
+                  metric = "F1",
+                  trControl = train_control,
+                  tuneGrid = tuneGrid,
+                  allowParallel= TRUE
+)
+
+```
+
+5. Provide a similar analysis using a Support Vector Machine.  However, irrespective of your settings for Question 4, for this excercise use a 5-fold cross-validation when training the model.  Be sure to explain all steps involved as well as an evaluation of model performance.  Which model is better, NB or SVM?  Explain in detail.
+
+```{r}
+
+```
+
+## Topic Modeling Breitbart News (50 points)
+
+In this section, we will analyze the thematic structure of a corpus of news articles from Breitbart News, a right-wing American news outlet. Employ a Structural Topic Model from the `stm` library to investigate the themes found within this corpus.
+
+First, bring in a sample of Breitbart articles from 2016 (n=5000):
+
+```{r}
+setwd(getwd())
+data <- read.csv("~/Desktop/QTA_Spring23/Homework2/breitbart_2016_sample.csv", 
+                 stringsAsFactors=FALSE,
+                 encoding = "utf-8")
+if(!require(devtools)) install.packages("devtools")
+library(devtools)
+install_github("mroberts/stmBrowser",dependencies=TRUE)
+
+lapply(c("tidyverse",
+         "quanteda",
+         "quanteda.textstats",
+         "lubridate",
+         "stm",
+         "wordcloud",
+         "stmBrowser",
+         "LDAvis"),
+       pkgTest)
+```
+
+1. Process the text and generate a document-feature matrix.  Be sure to remove unhelpful characters and tokens from the DFM and to also retain the original text for model validation.  Remove tokens that occur in less than 20 documents.  Justify your feature selection decisions.
+```{r}
+dfm <- readRDS("~/Desktop/QTA_Spring23/Homework2/dfm")
+toks <- readRDS("~/Desktop/QTA_Spring23/Homework2/toks")
+
+```
+
+```{r eval=FALSE, include=TRUE}
+corp <- corpus(data, 
+               docid_field = "title",
+               text_field = "content")
+
+prepped_toks <- prep_toks(corp) # basic token cleaning
+collocations <- get_coll(prepped_toks) # get collocations
+toks <- tokens_compound(prepped_toks, pattern = collocations[collocations$z > 10,]) # replace collocations
+toks <- tokens_remove(tokens(toks), "") # let's also remove the whitespace placeholders
+
+toks <- tokens(toks, 
+               remove_numbers = TRUE,
+               remove_punct = TRUE,
+               remove_symbols = TRUE,
+               remove_separators = TRUE,
+               remove_url = TRUE,
+) # remove other uninformative text
+toks <- tokens_remove(toks, c(),
+                      valuetype = "fixed")
+# Create dfm and weight using tf/idf
+dfm <- dfm(toks) # create DFM
+
+dfm <- dfm_trim(dfm, min_docfreq = 20) # trim DFM
+```
+
+2.  Convert the DFM into STM format and fit an STM model with `k=35` topics.  
+
+```{r}
+stmdfm <- readRDS("~/Desktop/QTA_Spring23/Homework2/stmdfm")
+modelFit <- readRDS("~/Desktop/QTA_Spring23/Homework2/modelFit")
+K <- 35
+```
+```{r eval=FALSE, include=TRUE}
+stmdfm <- convert(dfm, to = "stm")
+
+# Set k
+K <- 35
+# Run STM algorithm
+modelFit <- stm(documents = stmdfm$documents,
+                vocab = stmdfm$vocab,
+                K = K,
+                #prevalence = ~ title + s(as.numeric(date)),
+                #prevalence = ~ source + s(as.numeric(date_month)), 
+                data = stmdfm$meta,
+                max.em.its = 500,
+                init.type = "Spectral",
+                seed = 2023,
+                verbose = TRUE)
+
+
+```
+
+3.  Interpret the topics generated by the STM model.  Discuss the prevalence and top terms of each topic.  Provide a list of the labels you have associated with each estimated topic.  For each topic, justify your labelling decision. (Hint: You will want to cite excerpts from typical tweets of a given topic.  Also, use the date variable to inform estimates of topic prevalence.).  
+
+```{r}
+# Inspect most probable terms in each topic
+labelTopics(modelFit)
+#Highets prob 
+#FREX freqiency and exclusivity
+#lift >1 means word appears more than expected
+
+# Further interpretation: plotting frequent terms
+plot.STM(modelFit, 
+         type = "summary", 
+         labeltype = "frex", # plot according to FREX metric
+         text.cex = 0.7,
+         main = "Topic prevalence and top terms")
+
+plot.STM(modelFit, 
+         type = "summary", 
+         labeltype = "prob", # plot according to probability
+         text.cex = 0.7,
+         main = "Topic prevalence and top terms")
+
+# Use wordcloud to visualise top terms per topic
+#14,7,13,26,1,12,33,20,27,29,21,25
+
+cloud(modelFit,
+      topic = 14,
+      scale = c(3, 0.3),
+      max.words = 50)
+
+cloud(modelFit,
+      topic = 7,
+      scale = c(3, 0.3),
+      max.words = 50)
+
+cloud(modelFit,
+      topic = 13,
+      scale = c(3, 0.3),
+      max.words = 50)
+cloud(modelFit,
+      topic = 26,
+      scale = c(3, 0.3),
+      max.words = 50)
+cloud(modelFit,
+      topic = 1,
+      scale = c(3, 0.3),
+      max.words = 50)
+cloud(modelFit,
+      topic = 12,
+      scale = c(3, 0.3),
+      max.words = 50)
+cloud(modelFit,
+      topic = 33,
+      scale = c(3, 0.3),
+      max.words = 50)
+cloud(modelFit,
+      topic = 20,
+      scale = c(3, 0.3),
+      max.words = 50)
+cloud(modelFit,
+      topic = 27,
+      scale = c(3, 0.3),
+      max.words = 50)
+cloud(modelFit,
+      topic = 29,
+      scale = c(3, 0.3),
+      max.words = 50)
+cloud(modelFit,
+      topic = 21,
+      scale = c(3, 0.3),
+      max.words = 50)
+cloud(modelFit,
+      topic = 25,
+      scale = c(3, 0.3),
+      max.words = 50)
+
+
+
+
+###Q3 discuss All
+summary(modelFit)
+```
+14,7,13,26,1,12,33,20,27,29,21,25
+
+Topic 14 is about the policing and domestic terrorism in the us during 2016
+Topic 7 is a nonsensical
+topic 13 is about migration in europe and framing it as bad by higlighting social issues in europe
+topic 26 is about brexit as it was a big internaitonal discussion point at the time 
+topic 1 Not clear as clear but
+topic 12 About media and tv
+topic 33 about right leaning social media use and its use bringing up words like racism and censor
+topic 20 Republican candidates abd allies
+topic 27 Isreal palestine flare uo 
+Topic 29 The economy and issue scasued by democrats
+topic 21 a variety of topics abut republican voting 
+topic 25 Talking baout the obama presidency and its issies
+
+4.  Topic model validation.  Demonstrate and interpret the semantic and predictive validity of the model.  Also discuss the quality of topics in terms of semantic coherence and top exclusivity.  Discuss how you would show construct validity.
+```{r eval=FALSE, include=TRUE}
+stmdfm$meta$date<- lubridate::dmy(stmdfm$meta$date)
+
+  
+stmdfm$meta$date
+typeof(stmdfm$meta$date) 
+agg_theta <- setNames(aggregate(modelFit$theta,
+                                by = list(date = stmdfm$meta$date),
+                                FUN = mean),
+                      c("month", paste("Topic",1:K)))
+agg_theta <- pivot_longer(agg_theta, cols = starts_with("T"))
+saveRDS(agg_theta,'~/Desktop/QTA_Spring23/Homework2/agg_theta')
+#     c) Plot aggregated theta over time
+ggplot(data = agg_theta,
+       aes(x = month, y = value, group = name)) +
+  geom_smooth(aes(colour = name), se = FALSE) +
+  labs(title = "Topic prevalence",
+       x = "Month",
+       y = "Average monthly topic probability") + 
+  theme_minimal()
+
+```
+```{r}
+knitr::include_graphics("~/Desktop/QTA_Spring23/Homework2/Rplot.png")
+```
+
+```{r eval=TRUE, include=TRUE}
+agg_theta <- readRDS('~/Desktop/QTA_Spring23/Homework2/agg_theta')
+
+## 5. Semantic validation (topic correlations)
+topic_correlations <- topicCorr(modelFit)
+plot.topicCorr(topic_correlations,
+               vlabels = seq(1:ncol(modelFit$theta)), # we could change this to a vector of meaningful labels
+               vertex.color = "white",
+               main = "Topic correlations")
+
+## 6. Topic quality (semantic coherence and exclusivity)
+topicQuality(model = modelFit,
+             documents = stmdfm$documents,
+             xlab = "Semantic Coherence",
+             ylab = "Exclusivity",
+             labels = 1:ncol(modelFit$theta),
+             M = 15)
+
+
+```
+
+
+5.  What insights can be gleaned about right-wing media coverage of the 2016 US election?  What election-related topics were derived from the model?  What interesting temporal patterns exist?  Why might the prevalence of certain important topics vary over 2016?  Provide evidence in support of your answers.
+
+
+The graph is cyclical with two main issues peaking the first notable is the discusssion
+of trump himself which is really strong begining in the early stage of the election year and unusually is down before he official yis the republican nomination but 
+presumably due to the strength of his candidacy. 
+Topic 27 has a broef jump due to a flare up in israel palestine relations. 
+
+The next big topic is policing which is due to a series of police shootings and protests surrounding systematic racism in policing. 
+at the time. 
+The most notable is the steady promnence of topic 7 which stays aorund the top as migration remained a top isue for trump and for right leaning media.
